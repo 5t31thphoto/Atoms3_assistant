@@ -1,20 +1,3 @@
-idf_component_register(
-    SRCS
-        "main.c"
-        "audio_echo.c"
-        "fox_avatar.c"
-        "tools.c"
-        "llm_client.c"
-        "config_store.c"
-    INCLUDE_DIRS "."
-    REQUIRES
-        nvs_flash
-        esp_event
-        esp_netif
-        log
-        bt
-        esp_wifi
-        driver
-        esp_driver_i2s
-        esp_driver_gpio
-)
+cmake_minimum_required(VERSION 3.16)
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(fox_voice_assistant)
