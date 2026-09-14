@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fox Voice Assistant — Web Flasher</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">🦊</div>
+      <h1>Fox Voice Assistant</h1>
+      <p class="subtitle">AtomS3R + Atomic Echo · Build & Flash from the browser</p>
+    </header>
+
+    <section class="card" id="mode-card">
+      <h2>1. Choose Mode</h2>
+      <div class="mode-grid">
+        <label class="mode-option">
+          <input type="radio" name="mode" value="groq" checked />
+          <span class="mode-title">Groq (Recommended)</span>
+          <span class="mode-desc">Fast cloud LLM + Whisper STT. Best chat & tool calling.</span>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="mode" value="ondevice" />
+          <span class="mode-title">On-device</span>
+          <span class="mode-desc">Needle-style tool model or TinyStories. Works offline.</span>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="mode" value="stream" />
+          <span class="mode-title">Experimental Stream</span>
+          <span class="mode-desc">Weights on your GitHub Pages. ESP32 streams layers.</span>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="mode" value="hybrid" />
+          <span class="mode-title">Hybrid</span>
+          <span class="mode-desc">Prefer Groq, fall back to on-device when offline.</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="groq-card">
+      <h2>2. Groq Settings</h2>
+      <div class="form-row">
+        <label>API Key <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" /></label>
+      </div>
+      <div class="form-row">
+        <label>Model
+          <select id="groq-model">
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
+            <option value="qwen/qwen3-32b">Qwen3 32B</option>
+            <option value="moonshotai/kimi-k2-instruct">Kimi K2</option>
+            <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row">
+        <label>System Prompt
+          <textarea id="system-prompt" rows="4">You are a cute helpful fox assistant living on an AtomS3R. You can use tools for BLE radar, Wi-Fi scan, IR, IMU gestures. Keep answers short and playful. Name: {{FOX_NAME}}.</textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="fox-card">
+      <h2>3. Fox Personality & Look</h2>
+      <div class="form-row">
+        <label>Fox Name <input type="text" id="fox-name" value="Ember" maxlength="16" /></label>
+      </div>
+      <div class="form-row colors">
+        <label>Primary <input type="color" id="color-primary" value="#ff6b35" /></label>
+        <label>Accent <input type="color" id="color-accent" value="#f7c59f" /></label>
+        <label>Background <input type="color" id="color-bg" value="#1a1a2e" /></label>
+      </div>
+      <div class="form-row">
+        <label>Splash Text <input type="text" id="splash-text" value="Hello, I'm Ember!" maxlength="32" /></label>
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" id="enable-lip-sync" checked /> Rough lip-sync from audio amplitude</label>
+      </div>
+    </section>
+
+    <section class="card" id="tools-card">
+      <h2>4. Tools (Flipper-inspired)</h2>
+      <div class="tool-grid">
+        <label><input type="checkbox" id="tool-ble-radar" checked /> BLE Radar (IMU orientation)</label>
+        <label><input type="checkbox" id="tool-wifi-scan" checked /> Wi-Fi Scan / Passive</label>
+        <label><input type="checkbox" id="tool-ir" checked /> IR Transmit / Replay</label>
+        <label><input type="checkbox" id="tool-imu" checked /> IMU Gestures</label>
+        <label><input type="checkbox" id="tool-context" checked /> Persistent short context</label>
+      </div>
+    </section>
+
+    <section class="card" id="stream-card" style="display:none">
+      <h2>Experimental Stream Settings</h2>
+      <div class="form-row">
+        <label>Weights Base URL
+          <input type="url" id="weights-url" placeholder="https://youruser.github.io/your-weights-repo/" />
+        </label>
+      </div>
+      <p class="hint">Host quantized weight chunks (or a single model.bin) on a public GitHub Pages repo. Firmware will request layers over Wi-Fi.</p>
+    </section>
+
+    <section class="card actions">
+      <button id="btn-build" class="primary">Build Firmware</button>
+      <div id="build-status" class="status"></div>
+      <div id="flash-area" style="display:none">
+        <p>Firmware ready. Plug in your AtomS3R via USB-C (hold BOOT if needed), then flash:</p>
+        <esp-web-install-button id="install-btn" manifest=""></esp-web-install-button>
+        <p class="hint">Uses Web Serial + esptool under the hood. Chrome / Edge required.</p>
+      </div>
+    </section>
+
+    <footer>
+      <p>Open source · AtomS3R + Atomic Echo · Built for playful hardware AI</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

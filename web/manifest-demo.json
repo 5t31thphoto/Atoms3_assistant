@@ -1,0 +1,16 @@
+{
+  "name": "Fox Voice Assistant (Demo)",
+  "version": "0.1.0-demo",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "firmware-merged-demo.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
