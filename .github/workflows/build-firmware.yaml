@@ -3,6 +3,7 @@ name: Build Fox Firmware
 on:
   push:
     branches: [main, master]
+  pull_request:
   workflow_dispatch:
     inputs:
       config_json:
@@ -17,23 +18,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ============================================================
-      # OVERLAY: unzip fox-overlay.zip from repo root first
-      # - Add / replace files that exist in the zip
-      # - Leave any files that are NOT in the zip alone
-      # ============================================================
-      - name: Apply overlay zip
+      # ------------------------------------------------------------------
+      # REQUIRED: expand fox-overlay.zip from repo root before anything else
+      # ------------------------------------------------------------------
+      - name: Expand overlay zip
         run: |
-          if [ -f fox-overlay.zip ]; then
-            echo "Found fox-overlay.zip — applying overlay (add/replace, keep extras)"
-            # -o = overwrite without prompting
-            # does NOT delete files that exist only in the repo
-            unzip -o fox-overlay.zip -d .
-            echo "Overlay applied. Current tree:"
-            find . -maxdepth 3 -not -path './.git*' | sort
-          else
-            echo "No fox-overlay.zip present — using checked-out tree as-is"
+          set -euo pipefail
+          echo "=== Workspace before unzip ==="
+          ls -la
+          if [ ! -f fox-overlay.zip ]; then
+            echo "::error::fox-overlay.zip not found at repo root. Commit the overlay zip."
+            exit 1
           fi
+          echo "Expanding fox-overlay.zip (overwrite existing files, keep extras)..."
+          unzip -o fox-overlay.zip -d .
+          echo "=== Workspace after unzip ==="
+          ls -la
+          echo "=== Looking for firmware sources ==="
+          if [ ! -f firmware/main/main.c ]; then
+            echo "::error::firmware/main/main.c missing after unzip. Overlay zip is wrong or empty."
+            find . -type f | head -80
+            exit 1
+          fi
+          echo "Overlay OK — firmware/main/main.c present"
+          find firmware -type f | sort
 
       - name: Write optional runtime config
         if: ${{ github.event.inputs.config_json != '' }}
@@ -54,7 +62,7 @@ jobs:
               f.write(f'#define FOX_NAME "{name}"\n')
               f.write(f'#define FOX_MODE "{mode}"\n')
               f.write(f'#define FOX_COLOR_PRIMARY "{primary}"\n')
-          print("Generated config.h from web flasher config")
+          print("Generated config.h")
           PY
 
       - name: Build with ESP-IDF
@@ -64,21 +72,15 @@ jobs:
           target: esp32s3
           path: firmware
 
-      - name: Merge binary (single image for web flasher)
+      - name: List build outputs
+        if: always()
         working-directory: firmware
         run: |
-          . $IDF_PATH/export.sh 2>/dev/null || true
-          # Prefer a merged image so the browser flasher only needs offset 0
-          if command -v esptool.py >/dev/null 2>&1; then
-            esptool.py --chip esp32s3 merge_bin -o build/fox-merged.bin \
-              --flash_mode dio --flash_freq 80m --flash_size 8MB \
-              0x0 build/bootloader/bootloader.bin \
-              0x8000 build/partition_table/partition-table.bin \
-              0x10000 build/*.bin 2>/dev/null || true
-          fi
-          ls -la build/ || true
+          ls -la build/ 2>/dev/null || echo "no build dir"
+          ls -la build/*.bin 2>/dev/null || true
 
       - name: Upload artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: fox-firmware
