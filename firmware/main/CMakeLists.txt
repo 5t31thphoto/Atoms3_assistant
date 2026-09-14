@@ -9,10 +9,12 @@ idf_component_register(
     INCLUDE_DIRS "."
     REQUIRES
         nvs_flash
-        esp_wifi
-        esp_http_client
-        json
-        driver
-        esp_lcd
+        esp_event
+        esp_netif
+        log
         bt
+        esp_wifi
+        driver
+        esp_driver_i2s
+        esp_driver_gpio
 )
