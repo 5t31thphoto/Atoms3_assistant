@@ -1,0 +1,89 @@
+name: Build Fox Firmware
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      config_json:
+        description: "JSON config from web flasher (optional)"
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ============================================================
+      # OVERLAY: unzip fox-overlay.zip from repo root first
+      # - Add / replace files that exist in the zip
+      # - Leave any files that are NOT in the zip alone
+      # ============================================================
+      - name: Apply overlay zip
+        run: |
+          if [ -f fox-overlay.zip ]; then
+            echo "Found fox-overlay.zip — applying overlay (add/replace, keep extras)"
+            # -o = overwrite without prompting
+            # does NOT delete files that exist only in the repo
+            unzip -o fox-overlay.zip -d .
+            echo "Overlay applied. Current tree:"
+            find . -maxdepth 3 -not -path './.git*' | sort
+          else
+            echo "No fox-overlay.zip present — using checked-out tree as-is"
+          fi
+
+      - name: Write optional runtime config
+        if: ${{ github.event.inputs.config_json != '' }}
+        run: |
+          mkdir -p firmware/main/generated
+          echo '${{ github.event.inputs.config_json }}' > firmware/main/generated/user_config.json
+          python3 - << 'PY'
+          import json, os
+          path = "firmware/main/generated/user_config.json"
+          if not os.path.exists(path):
+              raise SystemExit(0)
+          cfg = json.loads(open(path).read())
+          name = cfg.get("fox", {}).get("name", "Ember")
+          mode = cfg.get("mode", "groq")
+          primary = cfg.get("fox", {}).get("colorPrimary", "#ff6b35")
+          with open("firmware/main/generated/config.h", "w") as f:
+              f.write("#pragma once\n")
+              f.write(f'#define FOX_NAME "{name}"\n')
+              f.write(f'#define FOX_MODE "{mode}"\n')
+              f.write(f'#define FOX_COLOR_PRIMARY "{primary}"\n')
+          print("Generated config.h from web flasher config")
+          PY
+
+      - name: Build with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3.2
+          target: esp32s3
+          path: firmware
+
+      - name: Merge binary (single image for web flasher)
+        working-directory: firmware
+        run: |
+          . $IDF_PATH/export.sh 2>/dev/null || true
+          # Prefer a merged image so the browser flasher only needs offset 0
+          if command -v esptool.py >/dev/null 2>&1; then
+            esptool.py --chip esp32s3 merge_bin -o build/fox-merged.bin \
+              --flash_mode dio --flash_freq 80m --flash_size 8MB \
+              0x0 build/bootloader/bootloader.bin \
+              0x8000 build/partition_table/partition-table.bin \
+              0x10000 build/*.bin 2>/dev/null || true
+          fi
+          ls -la build/ || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fox-firmware
+          path: |
+            firmware/build/*.bin
+            firmware/build/flasher_args.json
+            firmware/main/generated/
+          if-no-files-found: warn
