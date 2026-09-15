@@ -4,4 +4,5 @@ dependencies:
   espressif/arduino-esp32: "3.3.11"
   espressif/esp-sr: "2.5.3"
   espressif/esp-dl: "3.3.10"
+  bblanchon/arduinojson: "7.4.3"
   jmattsson/picotts: "1.1.3"
