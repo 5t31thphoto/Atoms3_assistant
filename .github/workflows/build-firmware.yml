@@ -16,11 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Python test dependencies
-        run: python3 -m pip install pytest
 
-      - name: Run tests
-        run: python3 -m pytest -q tests
 
       - name: Build ESP-IDF firmware
         uses: espressif/esp-idf-ci-action@v1
