@@ -7,7 +7,9 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <NimBLEDevice.h>
+#include <BLEDevice.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
 #include <esp_sleep.h>
 #include <esp_heap_caps.h>
 #include <esp_srmodel.h>
@@ -297,16 +299,16 @@ String wifi_scan() {
 
 String ble_scan() {
   if (!cfg.ble) return "Bluetooth is disabled.";
-  NimBLEScan *scan = NimBLEDevice::getScan();
+  BLEScan *scan = BLEDevice::getScan();
   scan->setActiveScan(true);
-  NimBLEScanResults results = scan->getResults(2200, false);
+  BLEScanResults *results = scan->start(2, false);
   String out;
-  int lim = min(results.getCount(), 6);
+  int lim = min(results->getCount(), 6);
   for (int i = 0; i < lim; ++i) {
-    const NimBLEAdvertisedDevice *dev = results.getDevice(i);
+    BLEAdvertisedDevice dev = results->getDevice(i);
     if (i) out += ", ";
-    String n = dev->getName().c_str();
-    out += n.length() ? n : String(dev->getAddress().toString().c_str());
+    String n = dev.getName();
+    out += n.length() ? n : dev.getAddress().toString();
   }
   scan->clearResults();
   return lim ? out : "No BLE devices found.";
@@ -836,7 +838,7 @@ void setup() {
   // Hold USER during boot to force setup, even when a previous Wi-Fi profile exists.
   bool force_setup = M5.BtnA.isPressed();
 
-  if (cfg.ble) NimBLEDevice::init(cfg.name.c_str());
+  if (cfg.ble) BLEDevice::init(cfg.name.c_str());
   cfg.cloud_enabled = !cfg.groq_key.isEmpty() && !cfg.groq_model.isEmpty();
   if (force_setup) start_portal();
   else if (cfg.wifi && cfg.wifi_ssid.length()) {

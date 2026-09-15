@@ -1,9 +1,6 @@
 dependencies:
   m5stack/m5unified: "0.2.17"
   m5stack/m5gfx: "0.2.22"
-  espressif/arduino-esp32: "3.3.11"
+  espressif/arduino-esp32: "3.3.7"
   espressif/esp-sr: "2.5.3"
-  espressif/esp-dl: "3.3.10"
-  bblanchon/arduinojson: "7.4.3"
-  h2zero/nimble_arduino: "2.3.8"
   jmattsson/picotts: "1.1.3"
