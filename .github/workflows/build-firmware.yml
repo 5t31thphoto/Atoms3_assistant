@@ -109,4 +109,4 @@ steps:
     with:
       name: fox-offline-firmware
       path: release/
-```
+
