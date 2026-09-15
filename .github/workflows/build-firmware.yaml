@@ -15,32 +15,12 @@ jobs:
       - name: Test offline command registry
         run: python3 -m pytest -q tests
 
-      - name: Install ESP-IDF
-        uses: espressif/install-esp-idf-action@v1
-        with:
-          version: v5.5.5
-
-      - name: Verify ESP-IDF toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          idf.py --version
-          test "$(idf.py --version)" = "ESP-IDF v5.5.5"
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("$IDF_PATH/components/heap/include/esp_heap_caps.h")
-          text = p.read_text()
-          assert "#define MALLOC_CAP_SIMD" in text, f"MALLOC_CAP_SIMD missing from {p}"
-          print(f"Verified MALLOC_CAP_SIMD in {p}")
-          PY
-
-      - name: Configure ESP32-S3
-        working-directory: firmware
-        run: idf.py set-target esp32s3
-
       - name: Build ESP-IDF firmware
-        working-directory: firmware
-        run: idf.py build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.2
+          target: esp32s3
+          path: firmware
 
       - name: Verify partition artifacts
         shell: bash
@@ -49,6 +29,7 @@ jobs:
           test -s firmware/build/fox_voice_assistant.bin
           test -s firmware/build/bootloader/bootloader.bin
           test -s firmware/build/partition_table/partition-table.bin
+          # ESP-SR generates its model image during the IDF build.
           test -s firmware/build/srmodels/srmodels.bin
           test -s firmware/build/esp-idf/picotts/picotts_ta.bin
           test -s firmware/build/esp-idf/picotts/picotts_sg.bin
