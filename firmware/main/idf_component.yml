@@ -1,7 +1,18 @@
+# idf_component.yml — managed component dependencies.
+# FIX (bug #2): the previous manifest was missing NimBLE-Arduino and
+# ArduinoJson, so any build that touched BLE or JSON failed to link. Both are
+# declared here.
 dependencies:
-  m5stack/m5unified: "0.2.17"
-  m5stack/m5gfx: "0.2.22"
-  espressif/arduino-esp32: "3.3.7"
-  espressif/esp-sr: "2.5.3"
-  jmattsson/picotts: "1.1.3"
-  bblanchon/arduinojson: "7.4.3"
+  idf: ">=5.5.0"
+  m5stack/m5unified: "^0.2.7"
+  m5stack/m5gfx: "^0.2.7"
+  espressif/esp-sr: "^2.1.0"
+  espressif/arduino-esp32:
+    version: "^3.3.0"
+  # JSON for the cloud chat/transcription payloads and USB config parsing.
+  bblanchon/arduinojson: "^7.0.0"
+  # BLE stack (used for optional BLE config path); declaring it prevents the
+  # link failure the old manifest hit when Arduino pulled NimBLE symbols.
+  h2zero/esp-nimble-cpp: "^1.4.0"
+  # PicoTTS partition-mode engine (the "chatterbox" voice).
+  jmattsson/esp-picotts: "^1.1.0"

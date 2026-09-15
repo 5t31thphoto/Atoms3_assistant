@@ -1,10 +1,15 @@
+# The fox firmware is one Arduino-as-component IDF app. All .cpp compile; the
+# .inc files are #included by fox_main.cpp / fox_llm.cpp and must NOT be listed
+# as sources. fox_sam.c is plain C.
 idf_component_register(
-    SRCS "main.cpp"
+    SRCS
+        "fox_main.cpp"
+        "fox_brain.cpp"
+        "fox_voice.cpp"
+        "fox_memory.cpp"
+        "fox_llm.cpp"
+        "fox_sam.c"
     INCLUDE_DIRS "."
-    REQUIRES nvs_flash esp_event esp_netif esp_wifi esp_http_client json esp_timer driver esp_system esp_hw_support heap m5unified m5gfx arduino-esp32 arduinojson esp-sr picotts
 )
 
-target_include_directories(${COMPONENT_LIB} PRIVATE
-    "${esp-sr_SOURCE_DIR}/include/esp32"
-    "${esp-sr_SOURCE_DIR}/src/include"
-)
+# Embed nothing here; data partitions are flashed separately by CI/web tool.
