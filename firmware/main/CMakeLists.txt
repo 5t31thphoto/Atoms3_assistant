@@ -16,5 +16,4 @@ idf_component_register(
         esp-sr
         picotts
         arduinojson
-        nimble_arduino
 )
