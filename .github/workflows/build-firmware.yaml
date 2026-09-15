@@ -1,94 +1,74 @@
 name: Build Fox Firmware
 
 on:
+  push:
+    branches: [main, master]
+  pull_request:
   workflow_dispatch:
-    inputs:
-      config_json:
-        description: "JSON config from the web flasher"
-        required: true
-        type: string
-      fox_name:
-        description: "Fox name (fallback)"
-        required: false
-        default: "Ember"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: espressif/idf:v5.3.2
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Test offline command registry
+        run: python3 -m pytest -q tests
+
+      - name: Install ESP-IDF
+        uses: espressif/install-esp-idf-action@v1
         with:
-          submodules: recursive
+          version: v5.5.5
 
-      - name: Write config
+      - name: Verify ESP-IDF toolchain
+        shell: bash
         run: |
-          mkdir -p firmware/main/generated
-          echo '${{ github.event.inputs.config_json }}' > firmware/main/generated/user_config.json
-          # Simple header generation (expand later)
-          python3 - << 'EOF'
-          import json, os
-          cfg = json.loads(open("firmware/main/generated/user_config.json").read())
-          name = cfg.get("fox", {}).get("name", "Ember")
-          with open("firmware/main/generated/config.h", "w") as f:
-              f.write("#pragma once\n")
-              f.write(f'#define FOX_NAME "{name}"\n')
-              f.write(f'#define FOX_MODE "{cfg.get("mode", "groq")}"\n')
-              primary = cfg.get("fox", {}).get("colorPrimary", "#ff6b35")
-              f.write(f'#define FOX_COLOR_PRIMARY "{primary}"\n')
-          print("Generated config.h")
-          EOF
+          set -euo pipefail
+          idf.py --version
+          test "$(idf.py --version)" = "ESP-IDF v5.5.5"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("$IDF_PATH/components/heap/include/esp_heap_caps.h")
+          text = p.read_text()
+          assert "#define MALLOC_CAP_SIMD" in text, f"MALLOC_CAP_SIMD missing from {p}"
+          print(f"Verified MALLOC_CAP_SIMD in {p}")
+          PY
 
-      - name: Build
+      - name: Configure ESP32-S3
         working-directory: firmware
-        run: |
-          . $IDF_PATH/export.sh
-          idf.py set-target esp32s3
-          idf.py build
+        run: idf.py set-target esp32s3
 
-      - name: Create merged binary
+      - name: Build ESP-IDF firmware
         working-directory: firmware
-        run: |
-          . $IDF_PATH/export.sh
-          # Produce a single flashable image (bootloader + partitions + app)
-          # Adjust offsets to match your partition table
-          esptool.py --chip esp32s3 merge_bin -o build/fox-merged.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            0x0 build/bootloader/bootloader.bin \
-            0x8000 build/partition_table/partition-table.bin \
-            0x10000 build/fox_voice_assistant.bin || true
-          # Fallback name if project binary differs
-          ls -la build/*.bin || true
+        run: idf.py build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Verify partition artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s firmware/build/fox_voice_assistant.bin
+          test -s firmware/build/bootloader/bootloader.bin
+          test -s firmware/build/partition_table/partition-table.bin
+          test -s firmware/build/srmodels/srmodels.bin
+          test -s firmware/build/esp-idf/picotts/picotts_ta.bin
+          test -s firmware/build/esp-idf/picotts/picotts_sg.bin
+
+      - name: Package release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp firmware/build/fox_voice_assistant.bin release/fox-app.bin
+          cp firmware/build/bootloader/bootloader.bin release/bootloader.bin
+          cp firmware/build/partition_table/partition-table.bin release/partition-table.bin
+          cp firmware/build/srmodels/srmodels.bin release/srmodels.bin
+          cp firmware/build/esp-idf/picotts/picotts_ta.bin release/picotts_ta.bin
+          cp firmware/build/esp-idf/picotts/picotts_sg.bin release/picotts_sg.bin
+          cp firmware/partitions.csv release/partitions.csv
+          cp firmware/build/flash_args release/flash_args.txt
+          sha256sum release/* > release/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: fox-firmware
-          path: |
-            firmware/build/*.bin
-            firmware/build/flasher_args.json
-            firmware/main/generated/
-
-      - name: Publish to Pages (optional)
-        if: success()
-        run: |
-          mkdir -p pages/builds/${{ github.run_id }}
-          cp firmware/build/fox-merged.bin pages/builds/${{ github.run_id }}/ 2>/dev/null || true
-          # Create a simple manifest for ESP Web Tools
-          cat > pages/builds/${{ github.run_id }}/manifest.json << MANIFEST
-          {
-            "name": "Fox Voice Assistant",
-            "version": "${{ github.run_id }}",
-            "builds": [
-              {
-                "chipFamily": "ESP32-S3",
-                "parts": [
-                  { "path": "fox-merged.bin", "offset": 0 }
-                ]
-              }
-            ]
-          }
-          MANIFEST
-          echo "Publish the pages/ folder with GitHub Pages or a second job."
+          name: fox-offline-firmware
+          path: release/
